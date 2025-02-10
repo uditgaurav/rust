@@ -6,11 +6,19 @@ RUN apt-get update && \
     curl \
     git \
     python3-pip \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Zig (required by cargo-lambda)
+RUN wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz && \
+    tar -xf zig-linux-x86_64-0.11.0.tar.xz && \
+    mv zig-linux-x86_64-0.11.0 /opt/zig && \
+    rm zig-linux-x86_64-0.11.0.tar.xz
+ENV PATH="/opt/zig:${PATH}"
 
 # Install Rust tools
 RUN rustup component add llvm-tools-preview && \
