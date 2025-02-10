@@ -28,9 +28,10 @@ ENV PATH="/root/.cargo/bin:$PATH"
 RUN rustup target add x86_64-unknown-linux-musl
 
 # ✅ Ensure the `.cargo` directory exists before writing to config.toml
-RUN mkdir -p /root/.cargo && echo '[target.x86_64-unknown-linux-musl]\nrustflags = ["-C", "target-feature=-crt-static"]' > /root/.cargo/config.toml
+RUN mkdir -p /root/.cargo && \
+    echo '[target.x86_64-unknown-linux-musl]\nrustflags = ["-C", "target-feature=+crt-static"]' > /root/.cargo/config.toml
 
-# Build the Rust application as a **fully static binary**
+# ✅ Build the Rust application as a **fully static binary**
 RUN cargo build --release --target x86_64-unknown-linux-musl
 
 # Use a minimal Alpine image for deployment
