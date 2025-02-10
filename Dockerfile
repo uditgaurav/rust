@@ -1,7 +1,7 @@
 # =====================================
 # Stage 1: Build Rust App (Static Binary)
 # =====================================
-FROM mcr.microsoft.com/devcontainers/rust:latest 
+FROM mcr.microsoft.com/devcontainers/rust:latest As builder
 
 # Install required dependencies
 RUN sudo apt-get update && sudo apt-get install -y \
