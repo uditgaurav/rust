@@ -29,7 +29,7 @@ WORKDIR /app
 # Build for Lambda extension
 RUN cargo lambda build --release --target x86_64-unknown-linux-gnu
 
-# Final stage
-FROM public.ecr.aws/lambda/provided:al2
-COPY --from=builder /app/target/lambda/extensions/chaos-lambda-extension /opt/
-ENTRYPOINT [ "/opt/chaos-lambda-extension" ]
+# # Final stage
+# FROM public.ecr.aws/lambda/provided:al2
+# COPY --from=builder /app/target/lambda/extensions/chaos-lambda-extension /opt/
+# ENTRYPOINT [ "/opt/chaos-lambda-extension" ]
