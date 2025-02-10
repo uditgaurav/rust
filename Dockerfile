@@ -19,23 +19,22 @@ RUN apt update && apt install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust via rustup
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
-    && echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# Set ENV so Rust is accessible in subsequent Dockerfile steps
+# Explicitly set the PATH for Rust
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Verify Rust installation
-RUN rustc --version && cargo --version && rustup --version
+RUN /root/.cargo/bin/rustc --version && /root/.cargo/bin/cargo --version && /root/.cargo/bin/rustup --version
 
 # Set Rust target for AWS Lambda compatibility
-RUN rustup target add x86_64-unknown-linux-gnu
+RUN /root/.cargo/bin/rustup target add x86_64-unknown-linux-gnu
 
 # Clone your repository
 RUN git clone https://github.com/uditgaurav/chaos-lambda-extension.git /app
 
 # Build the Rust project
-RUN cargo build --release --target x86_64-unknown-linux-gnu
+RUN /root/.cargo/bin/cargo build --release --target x86_64-unknown-linux-gnu
 
 # Expose binary location
 CMD ["ls", "-lh", "/app/target/x86_64-unknown-linux-gnu/release/"]
