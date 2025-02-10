@@ -8,24 +8,22 @@ RUN apt-get update && \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 # Install Rust tools
 RUN rustup component add llvm-tools-preview && \
-    pip3 install cargo-lambda
+    cargo install cargo-lambda
 
-# Clone your fork (replace with specific branch/tag if needed)
+# Clone your fork
 RUN git clone https://github.com/uditgaurav/chaos-lambda-extension /app
 WORKDIR /app
 
-# Build for Lambda execution environment
+# Build for Lambda
 RUN cargo lambda build --release --target x86_64-unknown-linux-gnu
 
 # Final stage with Amazon Linux 2 runtime
 FROM public.ecr.aws/lambda/provided:al2
-
-# Copy the stripped binary
-COPY --from=builder \
-    /app/target/lambda/extensions/chaos-lambda-extension \
-    /opt/
-
-# Lambda extension entrypoint
+COPY --from=builder /app/target/lambda/extensions/chaos-lambda-extension /opt/
 ENTRYPOINT [ "/opt/chaos-lambda-extension" ]
