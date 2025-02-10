@@ -1,13 +1,8 @@
-# Use the base image
-FROM linuxserver/rustdesk:latest
+# Use Rust latest as the base image
+FROM rust:latest
 
-# Set the working directory
-WORKDIR /app
-
-# Install necessary dependencies
-RUN apt update && apt install -y \
-    git \
-    curl \
+# Install required dependencies
+RUN apt-get update && apt-get install -y \
     build-essential \
     clang \
     gcc \
@@ -16,26 +11,23 @@ RUN apt update && apt install -y \
     perl \
     pkg-config \
     libssl-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust via rustup (ensure it installs in the correct home directory)
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
-    && echo 'source $HOME/.cargo/env' >> /root/.bashrc
+# Set the working directory
+WORKDIR /app
 
-# Explicitly set Rust environment variables for non-interactive shell
-ENV PATH="/root/.cargo/bin:$PATH"
-
-# Verify Rust installation (use bash to source environment)
-RUN /bin/bash -c "source /root/.cargo/env && rustc --version && cargo --version && rustup --version"
-
-# Set Rust target for AWS Lambda compatibility
-RUN /bin/bash -c "source /root/.cargo/env && rustup target add x86_64-unknown-linux-gnu"
-
-# Clone your repository
+# Clone your application repository
 RUN git clone https://github.com/uditgaurav/chaos-lambda-extension.git /app
 
-# Build the Rust project
-RUN /bin/bash -c "source /root/.cargo/env && cargo build --release --target x86_64-unknown-linux-gnu"
+# Set Rust environment
+ENV PATH="/root/.cargo/bin:$PATH"
 
-# Expose binary location
-CMD ["ls", "-lh", "/app/target/x86_64-unknown-linux-gnu/release/"]
+# Add AWS Lambda-compatible Rust target
+RUN rustup target add x86_64-unknown-linux-gnu
+
+# Build the Rust application
+RUN cargo build --release --target x86_64-unknown-linux-gnu
+
+# Set the command to run your application
+CMD ["./target/x86_64-unknown-linux-gnu/release/chaos-lambda-extension"]
