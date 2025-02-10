@@ -1,39 +1,31 @@
-# Use Rust official image with musl support for static linking
-FROM rust:latest AS builder
+FROM rustembedded/cross:x86_64-unknown-linux-gnu-0.2.1 AS builder
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Install basic dependencies
+RUN apt-get update && \
+    apt-get install -y \
     curl \
-    wget \
-    musl-tools \
-    pkg-config \
-    libssl-dev \
+    git \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Install Rust tools
+RUN rustup component add llvm-tools-preview && \
+    pip3 install cargo-lambda
+
+# Clone your fork (replace with specific branch/tag if needed)
+RUN git clone https://github.com/uditgaurav/chaos-lambda-extension /app
 WORKDIR /app
 
-# Clone the repository
-RUN git clone https://github.com/uditgaurav/chaos-lambda-extension.git . 
+# Build for Lambda execution environment
+RUN cargo lambda build --release --target x86_64-unknown-linux-gnu
 
-# Set Rust target to musl
-RUN rustup target add x86_64-unknown-linux-musl
+# Final stage with Amazon Linux 2 runtime
+FROM public.ecr.aws/lambda/provided:al2
 
-# Build the project in release mode with musl target
-RUN cargo build --release --target x86_64-unknown-linux-musl
+# Copy the stripped binary
+COPY --from=builder \
+    /app/target/lambda/extensions/chaos-lambda-extension \
+    /opt/
 
-# Create minimal runtime image
-FROM alpine:latest
-
-# Install necessary runtime dependencies
-RUN apk add --no-cache ca-certificates
-
-# Copy compiled binary from the builder stage
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension /opt/chaos-lambda-extension
-
-# Set executable permissions
-RUN chmod +x /opt/chaos-lambda-extension
-
-# Set entrypoint
-ENTRYPOINT ["/opt/chaos-lambda-extension"]
+# Lambda extension entrypoint
+ENTRYPOINT [ "/opt/chaos-lambda-extension" ]
