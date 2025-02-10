@@ -52,19 +52,18 @@ RUN cargo install cargo-audit && cargo binstall -y cargo-lambda
 # ✅ Build the Rust application as a fully static binary
 RUN cargo lambda build --release --target x86_64-unknown-linux-musl
 
-# # =====================================
-# # Stage 2: Create Minimal Runtime Image
-# # =====================================
-# FROM alpine:latest
-# WORKDIR /opt
+# =====================================
+# Stage 2: Create Minimal Runtime Image
+# =====================================
+FROM alpine:latest
+WORKDIR /opt
 
-# # Copy the compiled binary from the builder stage
-# # COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension .
-# COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension /opt/chaos-lambda-extension
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/target/lambda/chaos-lambda-extension /opt/chaos-lambda-extension
 
 
-# # Ensure the binary is executable
-# RUN chmod +x /opt/chaos-lambda-extension
+# Ensure the binary is executable
+RUN chmod +x /opt/chaos-lambda-extension
 
-# # Set the command to execute the Lambda extension
-# CMD ["/opt/chaos-lambda-extension"]
+# Set the command to execute the Lambda extension
+CMD ["/opt/chaos-lambda-extension"]
