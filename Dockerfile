@@ -13,7 +13,7 @@ RUN apt-get update && \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install Zig (required by cargo-lambda)
+# Install Zig
 RUN wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz && \
     tar -xf zig-linux-x86_64-0.11.0.tar.xz && \
     mv zig-linux-x86_64-0.11.0 /opt/zig && \
@@ -24,14 +24,15 @@ ENV PATH="/opt/zig:${PATH}"
 RUN rustup component add llvm-tools-preview && \
     cargo install cargo-lambda
 
-# Clone your fork
+# Clone and build
 RUN git clone https://github.com/uditgaurav/chaos-lambda-extension /app
 WORKDIR /app
 
-# Build for Lambda
-RUN cargo lambda build --release --target x86_64-unknown-linux-gnu
+# Build with explicit output path
+RUN cargo lambda build --release --target x86_64-unknown-linux-gnu --output-format zip
 
-# Final stage with Amazon Linux 2 runtime
+# Final stage
 FROM public.ecr.aws/lambda/provided:al2
-COPY --from=builder /app/target/lambda/extensions/chaos-lambda-extension /opt/
-ENTRYPOINT [ "/opt/chaos-lambda-extension" ]
+# Copy from the zip output location
+COPY --from=builder /app/target/lambda/chaos-lambda-extension/bootstrap /opt/
+ENTRYPOINT [ "/opt/bootstrap" ]
