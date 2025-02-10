@@ -1,8 +1,10 @@
-# Use Rust latest as the base image
-FROM rust:latest AS builder
+# =====================================
+# Stage 1: Build Rust App (Static Binary)
+# =====================================
+FROM mcr.microsoft.com/devcontainers/rust:latest AS builder
 
 # Install required dependencies
-RUN apt-get update && apt-get install -y \
+RUN sudo apt-get update && sudo apt-get install -y \
     musl-tools \
     build-essential \
     clang \
@@ -13,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     git \
+    wget \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
@@ -27,16 +31,27 @@ ENV PATH="/root/.cargo/bin:$PATH"
 # Add musl target for fully static compilation
 RUN rustup target add x86_64-unknown-linux-musl
 
-# ✅ Ensure the `.cargo` directory exists before writing to config.toml
+# Ensure the `.cargo` directory exists before modifying config
 RUN mkdir -p /root/.cargo && \
     echo '[target.x86_64-unknown-linux-musl]\nrustflags = ["-C", "target-feature=+crt-static"]' > /root/.cargo/config.toml
 
-# ✅ Build the Rust application as a **fully static binary**
-RUN cargo build --release --target x86_64-unknown-linux-musl
+# Install additional Rust tools
+RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+RUN wget https://github.com/mozilla/grcov/releases/download/v0.8.18/grcov-x86_64-unknown-linux-gnu.tar.bz2 && tar -xvjf grcov-x86_64-unknown-linux-gnu.tar.bz2 -C /usr/local/bin
+RUN rustup component add llvm-tools-preview
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+RUN cargo install cargo-audit && cargo binstall -y cargo-lambda
 
-# Use a minimal Alpine image for deployment
+# ✅ Build the Rust application as a fully static binary
+RUN cargo lambda build --release --target x86_64-unknown-linux-musl
+
+# =====================================
+# Stage 2: Create Minimal Runtime Image
+# =====================================
 FROM alpine:latest
 WORKDIR /opt
+
+# Copy the compiled binary from the builder stage
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension .
 
 # Ensure the binary is executable
