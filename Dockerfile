@@ -59,7 +59,9 @@ FROM alpine:latest
 WORKDIR /opt
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension .
+# COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension .
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension /opt/chaos-lambda-extension
+
 
 # Ensure the binary is executable
 RUN chmod +x /opt/chaos-lambda-extension
