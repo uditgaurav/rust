@@ -19,8 +19,14 @@ RUN apt update && apt install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust via rustup
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+
+# Set ENV so Rust is accessible in subsequent Dockerfile steps
 ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Verify Rust installation
+RUN rustc --version && cargo --version && rustup --version
 
 # Set Rust target for AWS Lambda compatibility
 RUN rustup target add x86_64-unknown-linux-gnu
