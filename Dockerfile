@@ -1,37 +1,39 @@
-FROM mcr.microsoft.com/devcontainers/rust:latest
+# Use Rust official image with musl support for static linking
+FROM rust:latest AS builder
 
 # Install dependencies
-RUN sudo apt-get update && sudo apt-get install -y \
+RUN apt-get update && apt-get install -y \
+    build-essential \
     curl \
     wget \
-    build-essential \
     musl-tools \
-    libssl-dev \
     pkg-config \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables
-ENV BIN_NAME=chaos-lambda-extension
-ENV TARGET_DIR=/app/target/lambda/extensions
-
-# Create working directory
+# Set working directory
 WORKDIR /app
 
 # Clone the repository
-RUN git clone https://github.com/uditgaurav/chaos-lambda-extension.git .
+RUN git clone https://github.com/uditgaurav/chaos-lambda-extension.git . 
 
-# Install Rust components
-RUN rustup component add llvm-tools-preview
-RUN cargo install cargo-audit cargo-lambda
+# Set Rust target to musl
+RUN rustup target add x86_64-unknown-linux-musl
 
-# Build the release binary
-RUN cargo build --release --locked --target x86_64-unknown-linux-gnu
+# Build the project in release mode with musl target
+RUN cargo build --release --target x86_64-unknown-linux-musl
 
-# Strip the binary for smaller size
-RUN strip ./target/x86_64-unknown-linux-gnu/release/$BIN_NAME
+# Create minimal runtime image
+FROM alpine:latest
 
-# Move binary to target directory
-RUN mkdir -p $TARGET_DIR && mv ./target/x86_64-unknown-linux-gnu/release/$BIN_NAME $TARGET_DIR/
+# Install necessary runtime dependencies
+RUN apk add --no-cache ca-certificates
+
+# Copy compiled binary from the builder stage
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension /opt/chaos-lambda-extension
+
+# Set executable permissions
+RUN chmod +x /opt/chaos-lambda-extension
 
 # Set entrypoint
-CMD ["/app/target/lambda/extensions/chaos-lambda-extension"]
+ENTRYPOINT ["/opt/chaos-lambda-extension"]
