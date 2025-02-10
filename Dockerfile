@@ -17,7 +17,14 @@ RUN sudo apt-get update && sudo apt-get install -y \
     git \
     wget \
     curl \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Zig (required for cargo-lambda)
+RUN wget -q https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz \
+    && tar -xf zig-linux-x86_64-0.11.0.tar.xz \
+    && mv zig-linux-x86_64-0.11.0 /usr/local/zig \
+    && ln -s /usr/local/zig/zig /usr/local/bin/zig
 
 # Set the working directory
 WORKDIR /app
