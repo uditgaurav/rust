@@ -1,10 +1,10 @@
-# Use Rust official image
-FROM rust:latest
+# Use Rust latest as the base image
+FROM rust:latest AS builder
 
-# Install dependencies
+# Install required dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
     musl-tools \
+    build-essential \
     clang \
     gcc \
     g++ \
@@ -24,16 +24,19 @@ RUN git clone https://github.com/uditgaurav/chaos-lambda-extension.git /app
 # Set Rust environment
 ENV PATH="/root/.cargo/bin:$PATH"
 
-# Add musl target for static linking
+# Add musl target for fully static compilation
 RUN rustup target add x86_64-unknown-linux-musl
 
-# Build the Rust application as a fully static binary
-RUN cargo build --release --target x86_64-unknown-linux-musl
+# Configure Cargo to statically link dependencies
+RUN echo '[target.x86_64-unknown-linux-musl]\nrustflags = ["-C", "target-feature=-crt-static"]' >> /root/.cargo/config.toml
 
-# Copy the compiled binary into a clean minimal image
+# Build the Rust application as a **fully static binary**
+RUN cargo build --release --target x86_64-unknown-linux-musl --features vendored
+
+# Use a minimal Alpine image for deployment
 FROM alpine:latest
 WORKDIR /opt
-COPY --from=0 /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension .
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/chaos-lambda-extension .
 
 # Ensure the binary is executable
 RUN chmod +x /opt/chaos-lambda-extension
