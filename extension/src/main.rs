@@ -14,7 +14,14 @@ struct RegisterRequest {
 
 #[derive(Debug, Deserialize)]
 struct RegisterResponse {
+    #[serde(rename = "extensionId")]
     extension_id: String,
+    #[serde(rename = "functionName")]
+    function_name: String,
+    #[serde(rename = "functionVersion")]
+    function_version: String,
+    #[serde(rename = "handler")]
+    handler: String,
 }
 
 #[tokio::main]
@@ -38,7 +45,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Register extension
+    // Register extension with Lambda service
     let runtime_api = env::var("AWS_LAMBDA_RUNTIME_API")
         .context("Missing AWS_LAMBDA_RUNTIME_API environment variable")?;
     
@@ -48,25 +55,34 @@ async fn main() -> Result<()> {
     let response = client.post(&register_url)
         .header("Lambda-Extension-Name", "chaos-network-extension")
         .json(&RegisterRequest {
-            events: vec!["INVOKE".to_string(), "SHUTDOWN".to_string()],
+            events: vec![
+                "INVOKE".to_string(),
+                "SHUTDOWN".to_string(),
+            ],
         })
         .send()
         .await
         .context("Extension registration failed")?;
 
-    let register_response: RegisterResponse = response.json()
-        .await
+    let raw_response = response.text().await.context("Failed to read registration response")?;
+    log::debug!("Raw registration response: {}", raw_response);
+
+    let register_response: RegisterResponse = serde_json::from_str(&raw_response)
         .context("Failed to parse registration response")?;
 
-    let extension_id = register_response.extension_id;
-    log::info!("Registered extension with ID: {}", extension_id);
+    log::info!(
+        "Registered extension successfully. Extension ID: {}, Function: {}:{}", 
+        register_response.extension_id,
+        register_response.function_name,
+        register_response.function_version
+    );
 
-    // Main event loop
+    // Main event processing loop
     let event_url = format!("http://{}/2020-01-01/extension/event/next", runtime_api);
     
     loop {
         let event_response = client.get(&event_url)
-            .header("Lambda-Extension-Identifier", &extension_id)
+            .header("Lambda-Extension-Identifier", &register_response.extension_id)
             .send()
             .await
             .context("Failed to get next event")?;
@@ -86,8 +102,13 @@ async fn main() -> Result<()> {
                 log::info!("Received shutdown event");
                 break;
             }
-            Some("INVOKE") => log::debug!("Received invoke event"),
-            _ => log::warn!("Received unknown event type"),
+            Some("INVOKE") => {
+                log::debug!("Received invoke event");
+                // Add custom invoke handling here if needed
+            }
+            _ => {
+                log::warn!("Received unknown event type: {:?}", event["eventType"]);
+            }
         }
     }
 
