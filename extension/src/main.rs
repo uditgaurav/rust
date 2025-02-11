@@ -1,5 +1,5 @@
 // chaos-lambda-extension/extension/src/main.rs
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -52,17 +52,23 @@ async fn main() -> Result<()> {
     let client = Client::new();
     let register_url = format!("http://{}/2020-01-01/extension/register", runtime_api);
 
+    // Initial registration with only INVOKE event
     let response = client.post(&register_url)
-        .header("Lambda-Extension-Name", "chaos-network-extension")
+        .header("Lambda-Extension-Name", "chaos-extension")
+        .header("Content-Type", "application/json")
         .json(&RegisterRequest {
-            events: vec![
-                "INVOKE".to_string(),
-                "SHUTDOWN".to_string(),
-            ],
+            events: vec!["INVOKE".to_string()],
         })
         .send()
         .await
         .context("Extension registration failed")?;
+
+    // Check HTTP status before parsing
+    if !response.status().is_success() {
+        let raw_err = response.text().await.context("Failed to read error response")?;
+        log::error!("Registration failed. API response: {}", raw_err);
+        return Err(anyhow!("Registration API error: {}", raw_err));
+    }
 
     let raw_response = response.text().await.context("Failed to read registration response")?;
     log::debug!("Raw registration response: {}", raw_response);
