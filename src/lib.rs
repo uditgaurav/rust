@@ -1,8 +1,6 @@
-// chaos-lambda-extension/src/lib.rs
 use libc::{c_int, sockaddr, socklen_t};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::env;
 use std::ffi::CStr;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -56,7 +54,9 @@ pub extern "C" fn getaddrinfo(
     for (blocked_host, blocked_port) in BLOCKED_HOSTS.iter() {
         if hostname == *blocked_host {
             if *blocked_port == 0 || service_name == blocked_port.to_string() {
-                unsafe { libc::errno = libc::EAI_FAIL };
+                unsafe {
+                    *libc::__errno_location() = libc::EAI_FAIL;
+                }
                 return libc::EAI_FAIL;
             }
         }
@@ -97,7 +97,9 @@ pub extern "C" fn connect(sockfd: c_int, addr: *const sockaddr, addrlen: socklen
     for (blocked_host, blocked_port) in BLOCKED_HOSTS.iter() {
         if let Ok(blocked_ip) = IpAddr::from_str(blocked_host) {
             if blocked_ip == ip && (*blocked_port == 0 || *blocked_port == port) {
-                unsafe { libc::errno = libc::ECONNREFUSED };
+                unsafe {
+                    *libc::__errno_location() = libc::ECONNREFUSED;
+                }
                 return -1;
             }
         }
