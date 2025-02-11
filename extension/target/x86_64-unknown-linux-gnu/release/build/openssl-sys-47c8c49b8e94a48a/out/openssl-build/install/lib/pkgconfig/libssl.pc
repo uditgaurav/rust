@@ -1,0 +1,11 @@
+prefix=/root/rust/extension/target/x86_64-unknown-linux-gnu/release/build/openssl-sys-47c8c49b8e94a48a/out/openssl-build/install
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include 
+
+Name: OpenSSL-libssl
+Description: Secure Sockets Layer and cryptography libraries
+Version: 3.4.1
+Requires.private: libcrypto
+Libs: -L${libdir} -lssl
+Cflags: -I${includedir}
